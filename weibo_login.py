@@ -142,7 +142,7 @@ def do_login(username,pwd,cookie_file):
     try:
         servertime, nonce, rsakv = get_prelogin_status(username)
     except:
-        return
+        return 0
     
     #Fill POST data
     print 'starting to set login_data'
@@ -224,11 +224,37 @@ if __name__ == '__main__':
     
     
     username = '18817583755'
-    pwd = getpass.getpass()
+    # pwd = getpass.getpass()
+    pwd = ''
     cookie_file = 'weibo_login_cookies.dat'
     
     if login(username, pwd, cookie_file):
         print 'Login WEIBO succeeded'
+        html = urllib2.urlopen('http://weibo.com/p/1035051708942053/follow?page=5').read()
+        pFollowItem = r"""
+            (<li\ class=\\"follow_item.*? # beginning of a fan
+                uid=(?P<uid>\d+)&   # uid
+                fnick=(?P<nickname>[^&]+)& # nickname
+                sex=(?P<gender>[^\\]+).*? # gender
+                关注\ <em[^>]+?><a[^>]+?>(?P<follwing>\d+).*? # following
+                粉丝<em[^>]+?><a[^>]+?>(?P<fans>\d+).*? # fans number
+                微博<em[^>]+?><a[^>]+?>(?P<weibo>\d+).*? # weibo number
+                地址<\\/em><span>(?P<address>[^<]+).*? # weibo number
+                info_intro\\"><span>(?P<introduction>[^<]+).*?
+            <\\/li>)+ # end of a fan
+        """
+        r = re.compile(pFollowItem, re.X)
+        iter = r.finditer(html)
+        # print len(result)
+        # print result
+        for i in iter:
+            gDict = i.groupdict()
+            for (key, value) in gDict.items():
+                # sys.stdout.write(key + ': ' + value + ' | ')
+                print key, ': ', value
+            # print i.groups()
+            print '-' * 10
+        # print html
 	#if you see the above message, then do whatever you want with urllib2, following is a example for fetch Kaifu's Weibo Home Page
 	#Trying to fetch Kaifu Lee's Weibo home page
 	# kaifu_page = urllib2.urlopen('http://www.weibo.com/kaifulee').read()
