@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-from weibo_login import login
+from weibo_login import login as loginToWeibo
 import threading
 import Queue
+import getpass
 
 class CrawlerThread(threading.Thread):
 	def __init__(self, taskQueue):
@@ -25,8 +26,16 @@ class Crawler:
 				crawlerThread.start()
 			self.taskQueue.join()
 		else:
-			raise EOFError("No start url defined!")
+			raise EOFError("No start url defined")
 
 if __name__ == '__main__':
-	urlToStart = 'http://weibo.com/blabla'
-	crawler = Crawler(urlToStart = urlToStart)
+	username = '18817583755'
+	password = getpass.getpass()
+	cookieFile = 'cookies.txt'
+	loginSuccess = loginToWeibo(username = username, pwd = password, cookie_file = cookieFile)
+	if loginSuccess:
+		urlToStart = 'http://weibo.com/blabla'
+		crawler = Crawler(urlToStart = urlToStart)
+		crawler.start()
+	else:
+		raise RuntimeError("Login to weibo failed")
