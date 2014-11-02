@@ -13,6 +13,8 @@ class CrawlerThread(threading.Thread):
                 uid=(?P<uid>\d+)&   # uid
                 fnick=(?P<nickname>[^&]+)& # nickname
                 sex=(?P<gender>[^\\]+).*? # gender
+                (?P<approved>微博个人认证)?.*? # approved person
+                (?P<approved_co>微博机构认证)?.*?	# approved company
                 关注\ <em[^>]+?><a[^>]+?>(?P<follwing>\d+).*? # following
                 粉丝<em[^>]+?><a[^>]+?>(?P<fans>\d+).*? # fans number
                 微博<em[^>]+?><a[^>]+?>(?P<weibo>\d+).*? # weibo number
@@ -24,7 +26,7 @@ class CrawlerThread(threading.Thread):
 	def __init__(self, taskQueue):
 		threading.Thread.__init__()
 		self.taskQueue = taskQueue
-		
+
 	def run(self):
 		while True:
 			uid = self.taskQueue.get()

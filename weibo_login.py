@@ -232,16 +232,17 @@ if __name__ == '__main__':
         print 'Login WEIBO succeeded'
         html = urllib2.urlopen('http://weibo.com/p/1035051708942053/follow?page=5').read()
         pFollowItem = r"""
-            (<li\ class=\\"follow_item.*? # beginning of a fan
+            <li\ class=\\"follow_item[\s\S]*? # beginning of a fan
                 uid=(?P<uid>\d+)&   # uid
                 fnick=(?P<nickname>[^&]+)& # nickname
-                sex=(?P<gender>[^\\]+).*? # gender
-                关注\ <em[^>]+?><a[^>]+?>(?P<follwing>\d+).*? # following
-                粉丝<em[^>]+?><a[^>]+?>(?P<fans>\d+).*? # fans number
-                微博<em[^>]+?><a[^>]+?>(?P<weibo>\d+).*? # weibo number
-                地址<\\/em><span>(?P<address>[^<]+).*? # weibo number
-                info_intro\\"><span>(?P<introduction>[^<]+).*?
-            <\\/li>)+ # end of a fan
+                sex=(?P<gender>[^\\]+)[\s\S]*? # gender
+                (?:微博(?P<approved>个人|机构)认证[\s\S]*?)? # TODO
+                关注\ <em[^>]+?><a[^>]+?>(?P<follwing>\d+)[\s\S]*? # following
+                粉丝<em[^>]+?><a[^>]+?>(?P<fans>\d+)[\s\S]*? # fans number
+                微博<em[^>]+?><a[^>]+?>(?P<weibo>\d+)[\s\S]*? # weibo number
+                (?:地址<\\/em><span>(?P<address>[^<]+)[\s\S]*?)? # weibo number
+                (?:info_intro\\">.*?<span[^>]*>(?P<introduction>[^<]+)[\s\S]*?)? # introduction
+            <\\/li> # end of a fan # end of a fan
         """
         r = re.compile(pFollowItem, re.X)
         iter = r.finditer(html)
@@ -254,11 +255,6 @@ if __name__ == '__main__':
                 print key, ': ', value
             # print i.groups()
             print '-' * 10
-        # print html
-	#if you see the above message, then do whatever you want with urllib2, following is a example for fetch Kaifu's Weibo Home Page
-	#Trying to fetch Kaifu Lee's Weibo home page
-	# kaifu_page = urllib2.urlopen('http://www.weibo.com/kaifulee').read()
-	# print kaifu_page
 
     else:
         print 'Login WEIBO failed'
