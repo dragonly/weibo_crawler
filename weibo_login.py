@@ -166,7 +166,10 @@ def do_login(username,pwd,cookie_file):
     try:
         #Search login redirection URL
         login_url = p.search(text).group(1)
-        data = urllib2.urlopen(login_url).read()
+        data = urllib2.urlopen(login_url)
+        # print dir(data)
+        # print 'headers', data.headers
+        data = data.read()
         #Verify login feedback, check whether result is TRUE
         patt_feedback = 'feedBackUrlCallBack\((.*)\)'
         p = re.compile(patt_feedback, re.MULTILINE)
@@ -224,8 +227,8 @@ if __name__ == '__main__':
     
     
     username = '18817583755'
-    # pwd = getpass.getpass()
-    pwd = ''
+    pwd = getpass.getpass()
+    # pwd = ''
     cookie_file = 'weibo_login_cookies.dat'
     
     if login(username, pwd, cookie_file):
@@ -246,8 +249,6 @@ if __name__ == '__main__':
         """
         r = re.compile(pFollowItem, re.X)
         iter = r.finditer(html)
-        # print len(result)
-        # print result
         for i in iter:
             gDict = i.groupdict()
             for (key, value) in gDict.items():
