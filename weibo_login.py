@@ -235,6 +235,41 @@ if __name__ == '__main__':
 			# fd.write('='*80)
 			fd.write(soup.prettify())
 
+		followList = soup.find_all('li', class_='follow_item')
+		info = []
+		for item in followList:
+			d = {}
+			kv = [pair.split('=') for pair in item.attrs['action-data'].split('&')]
+			for pair in kv:
+				d[pair[0]] = pair[1]
+			
+			mod_info = item.find('dd', class_='mod_info')
+
+			nums = mod_info.find('div', class_='info_connect').find_all('span')
+			d['following'] = nums[0].find('em').text
+			d['follower'] = nums[1].find('em').text
+			d['posts'] = nums[2].find('em').text
+
+			address = mod_info.find('div', class_='info_add')
+			if address:
+				address = address.find('span').text
+			introduction = mod_info.find('div', class_='info_intro')
+			if introduction:
+				introduction = introduction.find('span').text
+			follow_from = mod_info.find('div', class_='info_from')
+			if follow_from:
+				follow_from = follow_from.find('a').text
+
+			d['address'] = address
+			d['introduction'] = introduction
+			d['follow_from'] = follow_from
+
+			info.append(d)
+
+		for i in info:
+			for key in i.keys():
+				print key, ':', i[key]
+			print '-'*10
 
 	else:
 		print 'Login WEIBO failed'
