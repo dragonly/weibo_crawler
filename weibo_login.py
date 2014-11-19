@@ -227,13 +227,13 @@ if __name__ == '__main__':
     
     
     username = '18817583755'
-    pwd = getpass.getpass()
-    # pwd = ''
+    # pwd = getpass.getpass()
+    pwd = ''
     cookie_file = 'weibo_login_cookies.dat'
     
     if login(username, pwd, cookie_file):
         print 'Login WEIBO succeeded'
-        html = urllib2.urlopen('http://weibo.com/p/1035051708942053/follow?page=5').read()
+        html = urllib2.urlopen('http://weibo.com/laojishuoshi?from=feed&loc=nickname#_rnd1416363960189').read()
         pFollowItem = r"""
             <li\ class=\\"follow_item[\s\S]*? # beginning of a fan
                 uid=(?P<uid>\d+)&   # uid
@@ -247,8 +247,24 @@ if __name__ == '__main__':
                 (?:info_intro\\">.*?<span[^>]*>(?P<introduction>[^<]+)[\s\S]*?)? # introduction
             <\\/li> # end of a fan # end of a fan
         """
-        r = re.compile(pFollowItem, re.X)
+        pPosts = r"""
+            # <div\ class=\\"WB_feed[^>]+?>[\s\S]*?
+                <div\ \ (?:tbinfo|minfo)[^>]+?>[\s\S]*?
+
+                    <div\ class=\\"WB_handle[^>]+?>[\s\S]*?
+                        转发[^<]*?(?:(?P<rePost>\d+)|<    )[\s\S]*?
+                        评论.*?(?P<comment>\d+)[\s\S]*?
+                        <i\ class=\\"W_icon\ icon_praised_b.*?(?P<praised>\d+)[\s\S]*?
+                    <\\/div>[\s\S]*?
+                <\\/div>[\s\S]*?
+            # <\\/div>[\s\S]*?
+        """
+        # r = re.compile(pFollowItem, re.X)
+        r = re.compile(pPosts, re.X)
         iter = r.finditer(html)
+        with open('html', 'wt') as txt:
+            txt.write(html)
+        # print r.findall(html)
         for i in iter:
             gDict = i.groupdict()
             for (key, value) in gDict.items():
