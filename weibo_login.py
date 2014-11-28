@@ -66,6 +66,7 @@ def get_prelogin_status(username):
 	data = S.get(prelogin_url).text
 	p = re.compile('\((.*)\)')
 	
+	# print data
 	try:
 		json_data = p.search(data).group(1)
 		data = json.loads(json_data)
@@ -147,21 +148,22 @@ def do_login(username,pwd,cookies_file):
 	http_headers = {'User-Agent':'Mozilla/5.0 (X11; Linux i686; rv:8.0) Gecko/20100101 Firefox/8.0'}
 
 	text = requests.get(login_url, params=login_data, headers=http_headers).text
-	# print text
+	# print text.decode('gbk')
 	p = re.compile(r"location\.replace\('(.*?)'\)")
 	try:
 		#Search login redirection URL
 		login_url = p.search(text).group(1)
-		data = s.get(login_url).text
-
+		data = S.get(login_url).text
+		
 		patt_feedback = 'feedBackUrlCallBack\((.*)\)'
 		p = re.compile(patt_feedback, re.MULTILINE)
 		
 		feedback = p.search(data).group(1)
 		feedback_json = json.loads(feedback)
+		# print feedback_json['result']
 		if feedback_json['result']:
-			cookies_dict = requests.utils.dict_from_cookiejar(s.cookies)
-			print cookies_dict
+			cookies_dict = requests.utils.dict_from_cookiejar(S.cookies)
+			# print cookies_dict
 			with open('cookies.txt', 'wt') as fd:
 				pickle.dump(cookies_dict, fd)
 			return 1
@@ -208,9 +210,117 @@ def get_user(username):
 	username = base64.encodestring(username_)[:-1]
 	return username
 
+def get_follow_list(url):
+	html = S.get(url).text
+
+	pattern = r'html":"(<div class="WB_cardwrap S_bg2">[^}]*?)"\}'
+	html = html.replace('\\t', '').replace('\\n', '').replace('\\r', '').replace('\\', '')
+	# print html
+	html_snippet = re.search(pattern, html).group(1)
+	
+	soup = BS(html_snippet)
+	# print soup.prettify()
+
+	with open('follow_list.html', 'w') as fd:
+		# fd.write(html)
+		# fd.write('='*80)
+		fd.write(soup.prettify())
+
+	followList = soup.find_all('li', class_='follow_item')
+	info = []
+	for item in followList:
+		d = {}
+		kv = [pair.split('=') for pair in item.attrs['action-data'].split('&')]
+		for pair in kv:
+			d[pair[0]] = pair[1]
+		
+		mod_info = item.find('dd', class_='mod_info')
+
+		nums = mod_info.find('div', class_='info_connect').find_all('span')
+		d['following'] = nums[0].find('em').text
+		d['follower'] = nums[1].find('em').text
+		d['posts'] = nums[2].find('em').text
+
+		address = mod_info.find('div', class_='info_add')
+		if address:
+			address = address.find('span').text
+		introduction = mod_info.find('div', class_='info_intro')
+		if introduction:
+			introduction = introduction.find('span').text
+		follow_from = mod_info.find('div', class_='info_from')
+		if follow_from:
+			follow_from = follow_from.find('a').text
+
+		d['address'] = address
+		d['introduction'] = introduction
+		d['follow_from'] = follow_from
+
+		info.append(d)
+
+	print '-'*100
+	for i in info:
+		for key in i.keys():
+			print key, ':', i[key]
+		print '-'*100
+
+def get_posts(url):
+	html = S.get(url).text
+	with open('posts.html', 'wt') as fd:
+		left = html.find('<!--feed内容-->') + 13
+		right = html.find('"}', left + 1)
+		html = html[left:right].replace('\\t', '').replace('\\n', '').replace('\\r', '').replace('\\', '')
+		fd.write(BS(html).prettify())
+
+def escape_unicode(text):
+	remove = ['\\n', '\\r', '\\t', '\\', '{"code":"100000","msg":"","data":"', '"}']
+
+	pUnicodeReplace = re.compile(r'u(?=[0-9a-f]{4})')
+	pUnicode = re.compile(r'u[0-9a-f]{4}')
+
+	for i in remove:
+		text = text.replace(i, '')
+	for i in pUnicode.finditer(text):
+		original = i.group(0)
+		modified = ('\\' + original).decode('unicode-escape')
+		text = text.replace(original, modified)
+	return text
+
+def test_params():
+	url_home = "http://weibo.com/qianwenzhong1?page="
+	url_mbloglist = "http://weibo.com/p/aj/v6/mblog/mbloglist"
+	params = {}
+	params['pre_page'] = 1
+	params['page'] = 1
+	params['pagebar'] = 0
+	for i in range(3):
+		html = S.get(url_home + str(i + 1)).text
+
+		left = html.find('$CONFIG[\'domain\']=\'') + 19
+		right = html.find('\'', left + 1)
+		params['domain'] = html[left:right]
+
+		left = html.find('$CONFIG[\'page_id\']=\'') + 20
+		right = html.find('\'', left + 1)
+		params['id'] = html[left:right]
+		# print 'domain:', params['domain'], '| id:', params['id']
+
+		left = html.find('<!--feed内容-->') + 13
+		right = html.find('"}', left + 1)
+		html = html[left:right].replace('\\t', '').replace('\\n', '').replace('\\r', '').replace('\\', '')
+
+		for j in range(2):
+			html_snippet = S.get(url_mbloglist, params = params).text
+			html += escape_unicode(html_snippet)
+			params['pagebar'] += 1
+
+		with open('html_snippet/page' + str(i + 1) + '.html', 'wt') as fd:
+			fd.write(BS(html).prettify())
+
+		params['pre_page'] += 1
+		params['page'] += 1
+		params['pagebar'] = 0
 
 if __name__ == '__main__':
-	
 	
 	username = '18817583755'
 	# pwd = getpass.getpass()
@@ -219,57 +329,10 @@ if __name__ == '__main__':
 	
 	if login(username, pwd, cookies_file):
 		print 'Login WEIBO succeeded'
-		# html = S.get('http://weibo.com/p/1035051708942053/follow?page=5').text
-		html = S.get('http://weibo.com/p/1035051708942053/follow?page=5').text
+		# get_follow_list('http://weibo.com/p/1035051708942053/follow?page=5')
+		# get_posts('http://weibo.com/u/1686830902')
+		test_params()
 
-		pattern = r'html":"(<div class="WB_cardwrap S_bg2">[^}]*?)"\}'
-		html = html.replace('\\t', '').replace('\\n', '').replace('\\r', '').replace('\\', '')
-		# print html
-		html_snippet = re.search(pattern, html).group(1)
-		
-		soup = BS(html_snippet)
-		# print soup.prettify()
-
-		with open('html', 'w') as fd:
-			# fd.write(html)
-			# fd.write('='*80)
-			fd.write(soup.prettify())
-
-		followList = soup.find_all('li', class_='follow_item')
-		info = []
-		for item in followList:
-			d = {}
-			kv = [pair.split('=') for pair in item.attrs['action-data'].split('&')]
-			for pair in kv:
-				d[pair[0]] = pair[1]
-			
-			mod_info = item.find('dd', class_='mod_info')
-
-			nums = mod_info.find('div', class_='info_connect').find_all('span')
-			d['following'] = nums[0].find('em').text
-			d['follower'] = nums[1].find('em').text
-			d['posts'] = nums[2].find('em').text
-
-			address = mod_info.find('div', class_='info_add')
-			if address:
-				address = address.find('span').text
-			introduction = mod_info.find('div', class_='info_intro')
-			if introduction:
-				introduction = introduction.find('span').text
-			follow_from = mod_info.find('div', class_='info_from')
-			if follow_from:
-				follow_from = follow_from.find('a').text
-
-			d['address'] = address
-			d['introduction'] = introduction
-			d['follow_from'] = follow_from
-
-			info.append(d)
-
-		for i in info:
-			for key in i.keys():
-				print key, ':', i[key]
-			print '-'*10
 
 	else:
 		print 'Login WEIBO failed'

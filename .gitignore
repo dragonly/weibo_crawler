@@ -1,3 +1,5 @@
 *.pyc
 *.dat
-cookies.txt
+*.txt
+*.html
+html_snippet/

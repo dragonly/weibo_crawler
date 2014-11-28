@@ -17,7 +17,7 @@ def debug(message):
 	if __DEBUG__:
 		print message
 
-class CrawlerThreadUid(threading.Thread):
+class GetUidThread(threading.Thread):
 
 	rFollowItem = re.compile(r"""
 			<li\ class=\\"follow_item[\s\S]*? # beginning of a fan
@@ -96,9 +96,10 @@ class CrawlerThreadUid(threading.Thread):
 
 
 class Crawler:
-	def __init__(self, nThreadsUid = 5, uidToStart = None, nThreadsCrawler = 20):
-		self.nThreadsUid = nThreadsUid
+	def __init__(self, numGetUidThread = 5, uidToStart = None, numGetPostsThread = 20):
+		self.numGetUidThread = numGetUidThread
 		self.uidToStart = uidToStart
+		self.numGetPostsThread = numGetPostsThread
 		self.taskQueue = Queue.Queue()
 		self.fileLock = threading.Lock()
 	def startGetUid(self):
@@ -108,14 +109,18 @@ class Crawler:
 					self.taskQueue.put(item)
 			else:
 				self.taskQueue.put(self.uidToStart)
-			for i in range(0, self.nThreadsUid):
-				crawlerThreadUid = CrawlerThreadUid(taskQueue = self.taskQueue, fileLock = self.fileLock)
-				crawlerThreadUid.start()
+			for i in range(0, self.numGetUidThread):
+				getUidThread = GetUidThread(taskQueue = self.taskQueue, fileLock = self.fileLock)
+				getUidThread.start()
 			self.taskQueue.join()
 		else:
 			raise EOFError("No start uid defined")
+	
 	def startGetPosts(self):
 		pass
+
+	def start(self):
+		getUidThread = threading.Thread(target=self.startGetUid)
 
 if __name__ == '__main__':
 	username = '18817583755'
@@ -124,7 +129,7 @@ if __name__ == '__main__':
 	loginSuccess = loginToWeibo(username = username, pwd = password, cookie_file = cookieFile)
 	if loginSuccess:
 		uidToStart = ['1826792401', '1826792402', '1826792403', '1826792404', '1826792405'] # sephirex
-		crawler = Crawler(uidToStart = uidToStart, nThreadsUid = 2)
+		crawler = Crawler(uidToStart = uidToStart, numGetUidThread = 2)
 		crawler.startGetUid()
 	else:
 		raise RuntimeError("Login to weibo failed")
