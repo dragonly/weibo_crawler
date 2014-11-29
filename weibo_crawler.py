@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding=utf8 -*-
 
-from weibo_login import login as loginToWeibo, urllib2
+from weibo_login import login as loginToWeibo, S
 import threading
 import Queue
 import getpass
@@ -46,7 +46,7 @@ class GetUidThread(threading.Thread):
 		return ret
 
 	def _extract(self, url):
-		html = urllib2.urlopen(url).read()
+		html = S.get(url).text
 		iter = self.__class__.rFollowItem.finditer(html)
 		uids = []
 		for i in iter:
@@ -66,7 +66,7 @@ class GetUidThread(threading.Thread):
 	def run(self):
 		while True:
 			try: 
-				uid = self.taskQueue.get(True, 2)
+				uid = self.taskQueue.get(True)
 			except Queue.Empty, e:
 				print e, '\ntask done'
 				return
@@ -84,7 +84,7 @@ class GetUidThread(threading.Thread):
 						uids.extend(self._extract(urlToRequest))
 						print threading.current_thread()
 						break
-					except urllib2.URLError, e:
+					except Exception, e:
 						count += 1
 						print e, '-'*6, count
 
@@ -121,15 +121,16 @@ class Crawler:
 
 	def start(self):
 		getUidThread = threading.Thread(target=self.startGetUid)
+		getUidThread.start()
+		getUidThread.join()
 
 if __name__ == '__main__':
 	username = '18817583755'
 	password = getpass.getpass()
 	cookieFile = 'cookies.txt'
-	loginSuccess = loginToWeibo(username = username, pwd = password, cookie_file = cookieFile)
-	if loginSuccess:
+	if loginToWeibo(username = username, pwd = password, cookies_file = cookieFile):
 		uidToStart = ['1826792401', '1826792402', '1826792403', '1826792404', '1826792405'] # sephirex
 		crawler = Crawler(uidToStart = uidToStart, numGetUidThread = 2)
-		crawler.startGetUid()
+		crawler.start()
 	else:
 		raise RuntimeError("Login to weibo failed")

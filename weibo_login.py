@@ -62,7 +62,8 @@ def get_prelogin_status(username):
 	"""
 	Perform prelogin action, get prelogin status, including servertime, nonce, rsakv, etc.
 	"""
-	prelogin_url = 'http://login.sina.com.cn/sso/prelogin.php?entry=weibo&callback=sinaSSOController.preloginCallBack&su=' + get_user(username) + '&rsakt=mod&checkpin=1&client=ssologin.js(v1.4.18)';
+	# prelogin_url = 'http://login.sina.com.cn/sso/prelogin.php?entry=weibo&callback=sinaSSOController.preloginCallBack&su=' + get_user(username) + '&rsakt=mod&checkpin=1&client=ssologin.js(v1.4.18)';
+	prelogin_url = 'http://login.sina.com.cn/sso/prelogin.php?entry=account&callback=sinaSSOController.preloginCallBack&su=' + get_user(username) + '&rsakt=mod&client=ssologin.js(v1.4.15)'
 	data = S.get(prelogin_url).text
 	p = re.compile('\((.*)\)')
 	
@@ -101,6 +102,7 @@ def login(username, pwd, cookies_file):
 		print 'Loading cookies success'
 		return 1
 	else:   #If no cookies found
+		# print "do_login()"
 		return do_login(username, pwd, cookies_file)
 
 
@@ -144,16 +146,19 @@ def do_login(username,pwd,cookies_file):
 	login_data['su'] = get_user(username)
 	login_data['sp'] = get_pwd_rsa(pwd, servertime, nonce)
 	login_data['rsakv'] = rsakv
+	# print login_data
 	# login_data = urllib.urlencode(login_data)
 	http_headers = {'User-Agent':'Mozilla/5.0 (X11; Linux i686; rv:8.0) Gecko/20100101 Firefox/8.0'}
 
 	text = requests.get(login_url, params=login_data, headers=http_headers).text
-	# print text.decode('gbk')
-	p = re.compile(r"location\.replace\('(.*?)'\)")
+	# print text
+
+	# check if need to input CAPTCHA
+	p = re.compile(r"location\.replace\(['\"](.*?)['\"]\)")
+	login_ret = p.search(text).group(1)
+
 	try:
-		#Search login redirection URL
-		login_url = p.search(text).group(1)
-		data = S.get(login_url).text
+		data = S.get(login_ret).text
 		
 		patt_feedback = 'feedBackUrlCallBack\((.*)\)'
 		p = re.compile(patt_feedback, re.MULTILINE)
@@ -210,6 +215,8 @@ def get_user(username):
 	username = base64.encodestring(username_)[:-1]
 	return username
 
+# crawler related
+
 def get_follow_list(url):
 	html = S.get(url).text
 
@@ -221,10 +228,10 @@ def get_follow_list(url):
 	soup = BS(html_snippet)
 	# print soup.prettify()
 
-	with open('follow_list.html', 'w') as fd:
+	# with open('follow_list.html', 'w') as fd:
 		# fd.write(html)
 		# fd.write('='*80)
-		fd.write(soup.prettify())
+		# fd.write(soup.prettify())
 
 	followList = soup.find_all('li', class_='follow_item')
 	info = []
@@ -236,7 +243,13 @@ def get_follow_list(url):
 		
 		mod_info = item.find('dd', class_='mod_info')
 
+		# filter topics
+		is_topic = mod_info.find('div', class_='info_name').find('span')
+		if is_topic and is_topic.text == '#':
+			continue
+
 		nums = mod_info.find('div', class_='info_connect').find_all('span')
+		# print nums
 		d['following'] = nums[0].find('em').text
 		d['follower'] = nums[1].find('em').text
 		d['posts'] = nums[2].find('em').text
@@ -261,7 +274,7 @@ def get_follow_list(url):
 	for i in info:
 		for key in i.keys():
 			print key, ':', i[key]
-		print '-'*100
+		print '-'*60
 
 def get_posts(url):
 	html = S.get(url).text
@@ -330,8 +343,9 @@ if __name__ == '__main__':
 	if login(username, pwd, cookies_file):
 		print 'Login WEIBO succeeded'
 		# get_follow_list('http://weibo.com/p/1035051708942053/follow?page=5')
+		get_follow_list('http://weibo.com/p/1003061642351362/follow?from=page_100306&wvr=6&mod=headfollow#place')
 		# get_posts('http://weibo.com/u/1686830902')
-		test_params()
+		# test_params()
 
 
 	else:
