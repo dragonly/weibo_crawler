@@ -36,50 +36,12 @@ def csvGenerator(fd):
 
 class GetUidThread(threading.Thread):
 
-	# rFollowItem = re.compile(r"""
-	# 		<li\ class=\\"follow_item[\s\S]*? # beginning of a fan
-	# 			uid=(?P<uid>\d+)&   # uid
-	# 			fnick=(?P<nickname>[^&]+)& # nickname
-	# 			sex=(?P<gender>[^\\]+)[\s\S]*? # gender
-	# 			(?:微博(?P<approved>个人|机构)认证[\s\S]*?)? # TODO
-	# 			关注\ <em[^>]+?><a[^>]+?>(?P<follwing>\d+)[\s\S]*? # following
-	# 			粉丝<em[^>]+?><a[^>]+?>(?P<fans>\d+)[\s\S]*? # fans number
-	# 			微博<em[^>]+?><a[^>]+?>(?P<weibo>\d+)[\s\S]*? # weibo number
-	# 			(?:地址<\\/em><span>(?P<address>[^<]+)[\s\S]*?)? # weibo number
-	# 			(?:info_intro\\">.*?<span[^>]*>(?P<introduction>[^<]+)[\s\S]*?)? # introduction
-	# 		<\\/li> # end of a fan # end of a fan
-	# 	""", re.X)
 	uidsVisited = set()
 
 	def __init__(self, uidsQueued, fileLock, *args, **kwargs):
 		threading.Thread.__init__(self, *args, **kwargs)
 		self.uidsQueued = uidsQueued
 		self.uidsVisited = self.__class__.uidsVisited
-
-	# def _extractFromDict(self, target, fileds):
-	# 	ret = {}
-	# 	for filed in fileds:
-	# 		if target[filed] != None:
-	# 			ret[filed] = target[filed]
-	# 	return ret
-
-	# def _extract(self, url):
-	# 	html = S.get(url).text
-	# 	iter = self.__class__.rFollowItem.finditer(html)
-	# 	uids = []
-	# 	for i in iter:
-	# 		gDict = i.groupdict()
-	# 		if gDict['weibo'] > 1000 and gDict['fans'] > 10000:
-	# 			user = this._extractFromDict(gDict, ['uid', 'nickname', 'gender', 'introduction', 'address', 'approved', 'weibo', 'fans', 'following'])
-	# 			uids.append(user)
-	# 		for (key, value) in gDict.items():
-	# 			# sys.stdout.write(key + ': ' + value + ' | ')
-	# 			print key, ': ', value
-	# 		# print i.groups()
-	# 		print '-' * 10
-
-	# 		if random() < 0.1:
-	# 			self.uidsQueued.put(gDict['uid'])
 
 	def get_follow_list(self, uid, i):
 
@@ -152,16 +114,6 @@ class GetUidThread(threading.Thread):
 			for i in range(1, 6):
 
 				self.get_follow_list(uid, i)
-
-				# count = 0
-				# while True:
-				# 	try:
-				# 		self.get_follow_list(uid, i)
-				# 		break
-				# 	except Exception, e:
-				# 		count += 1
-				# 		print e, '-'*6, count
-				# 		raise e
 
 			self.uidsVisited.add(uid)
 
