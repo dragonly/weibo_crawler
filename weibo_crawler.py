@@ -6,6 +6,7 @@ import Queue
 import getpass
 import re
 import time
+import signal
 from math import floor
 from random import random
 from weibo_login import login as loginToWeibo, S
@@ -36,12 +37,12 @@ def csvGenerator(fd):
 
 class GetUidThread(threading.Thread):
 
-	uidsVisited = set()
-
-	def __init__(self, uidsQueued, fileLock, *args, **kwargs):
+	def __init__(self, uidsQueued, uidsVisited, fileLock, *args, **kwargs):
 		threading.Thread.__init__(self, *args, **kwargs)
 		self.uidsQueued = uidsQueued
-		self.uidsVisited = self.__class__.uidsVisited
+		self.uidsVisited = uidsVisited
+		self.__terminated__ = False
+		self.__fileLock__ = fileLock
 
 	def get_follow_list(self, uid, i):
 
@@ -52,7 +53,11 @@ class GetUidThread(threading.Thread):
 		pattern = r'html":"(<div class="WB_cardwrap S_bg2">[^}]*?)"\}'
 		html = html.replace('\\t', '').replace('\\n', '').replace('\\r', '').replace('\\', '')
 		# print html
-		html_snippet = re.search(pattern, html).group(1)
+		try:
+			html_snippet = re.search(pattern, html).group(1)
+		except Exception, e:
+			print e
+			return
 		
 		soup = BS(html_snippet)
 
@@ -101,7 +106,7 @@ class GetUidThread(threading.Thread):
 		return True
 
 	def run(self):
-		while True:
+		while not self.__terminated__:
 		# for i in range(1):
 			try: 
 				uid = self.uidsQueued.get(True)
@@ -109,10 +114,9 @@ class GetUidThread(threading.Thread):
 				print e, '\ntask done'
 				return
 			
-			if 
 			print 'getting following list from uid[', uid, ']'
-			for i in range(1, 6):
 
+			for i in range(1, 6):
 				self.get_follow_list(uid, i)
 
 			self.uidsVisited.add(uid)
@@ -126,28 +130,41 @@ class GetUidThread(threading.Thread):
 
 			self.uidsQueued.task_done()
 			# print self.taskQueue.queue
+		# self.__fileLock__.acquire()
+		# self.__fileLock__.release()
+
+class GetPostsThread(threading.Thread):
+	def __init__(self, *args, **kwargs):
+		threading.Thread.__init__(self, *args, **kwargs)
+
 
 class Crawler:
 	def __init__(self, numGetUidThread = 5, numGetPostsThread = 20, fileUidsQueued = None, fileUidsVisited = None):
 		self.numGetUidThread = numGetUidThread
-		self.uidToStart = uidToStart
 		self.numGetPostsThread = numGetPostsThread
 		self.uidsQueued = Queue.Queue()
+		self.uidsVisited = set()
+		self.threads = []
 
-		self.fdUidsVisited = open(fileUidsQueued, 'at')
-		self.fdUidsQueued = open(fileUidsVisited, 'r+t')
+		self.fdUidsQueued = open(fileUidsQueued, 'r+t')
+		self.fdUidsVisited = open(fileUidsVisited, 'r+t')
 		self.fileLock = threading.Lock()
 
-		for line in self.fdUidsQueued:
-
 	def startGetUid(self, q):
-		if isinstance(self.uidToStart, list):
-			for item in self.uidToStart:
-				self.uidsQueued.put(item)
-		else:
-			self.uidsQueued.put(self.uidToStart)
+		iterQueued = csvGenerator(self.fdUidsQueued)
+		for uid in iterQueued:
+			if uid != '':
+				self.uidsQueued.put(uid)
+		iterVisited = csvGenerator(self.fdUidsVisited)
+		for uid in iterVisited:
+			if uid != '':
+				self.uidsVisited.add(uid)
+			print self.uidsVisited
+		# self.fdUidsQueued.truncate()
+
 		for i in range(0, self.numGetUidThread):
-			getUidThread = GetUidThread(uidsQueued = self.uidsQueued, fileLock = self.fileLock)
+			getUidThread = GetUidThread(uidsQueued = self.uidsQueued, uidsVisited = self.uidsVisited, fileLock = self.fileLock)
+			self.threads.append(getUidThread)
 			getUidThread.daemon = True
 			getUidThread.start()
 		self.uidsQueued.join()
@@ -155,7 +172,6 @@ class Crawler:
 		q.task_done()
 	
 	def startGetPosts(self, q):
-
 		q.task_done()
 
 	def start(self):
@@ -168,7 +184,49 @@ class Crawler:
 		t = threading.Thread(target=self.startGetPosts, args=(q, ))
 		t.daemon = True
 		t.start()
-		q.join()
+		# q.join()
+	def writeToFile(self, fd):
+		fd.truncate()
+		for uid in list(self.uidsQueued.queue)[:-1]:
+			fd.write(uid)
+			fd.write(',')
+		fd.write(self.uidsQueued.queue[-1])
+		fd.close()
+
+	def stop(self):
+		for thread in self.threads:
+			thread.__terminated__ = True
+
+		# wait until all thread finish current run
+		for thread in self.threads:
+			thread.join()
+
+		# write uids queued into uidsQueued.txt
+		self.fdUidsQueued.truncate()
+		self.fdUidsQueued.seek(0)
+		for uid in list(self.uidsQueued.queue)[:-1]:
+			self.fdUidsQueued.write(uid)
+			self.fdUidsQueued.write(',')
+		self.fdUidsQueued.write(self.uidsQueued.queue[-1])
+		self.fdUidsQueued.close()
+
+		# write uids visited into uidsVisited.txt
+		self.fdUidsVisited.truncate()
+		self.fdUidsVisited.seek(0)
+		for uid in list(self.uidsVisited)[:-1]:
+			self.fdUidsVisited.write(uid)
+			self.fdUidsVisited.write(',')
+		self.fdUidsVisited.write(list(self.uidsVisited)[-1])
+		self.fdUidsVisited.close()
+		# print self.uidsQueued.queue
+
+def exitHandler(*args, **kwargs):
+	# print 'Exit'
+	# with open('exit.txt', 'a+t') as fd:
+	# 	fd.write('exit!\n')
+	global crawler
+	crawler.stop()
+	exit()
 
 if __name__ == '__main__':
 	username = '18817583755'
@@ -177,8 +235,13 @@ if __name__ == '__main__':
 	cookieFile = 'cookies.txt'
 	if loginToWeibo(username = username, pwd = password, cookies_file = cookieFile):
 		fileUidsQueued = './data/uidsQueued.txt'
-		fileUidsVisited = './data/uidsQueued.txt'
+		fileUidsVisited = './data/uidsVisited.txt'
 		crawler = Crawler(numGetUidThread = 2, fileUidsQueued = fileUidsQueued, fileUidsVisited = fileUidsVisited)
 		crawler.start()
+ 
+		signal.signal(signal.SIGINT, exitHandler)
+
+		while True:
+			pass
 	else:
 		raise RuntimeError("Login to weibo failed")
