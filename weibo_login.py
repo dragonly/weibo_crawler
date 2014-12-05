@@ -343,9 +343,9 @@ if __name__ == '__main__':
 	if login(username, pwd, cookies_file):
 		print 'Login WEIBO succeeded'
 		# get_follow_list('http://weibo.com/p/1035051708942053/follow?page=5')
-		get_follow_list('http://weibo.com/p/1003061642351362/follow?from=page_100306&wvr=6&mod=headfollow#place')
+		# get_follow_list('http://weibo.com/p/1003061642351362/follow?from=page_100306&wvr=6&mod=headfollow#place')
 		# get_posts('http://weibo.com/u/1686830902')
-		# test_params()
+		test_params()
 
 
 	else:
