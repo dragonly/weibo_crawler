@@ -4,4 +4,4 @@
 *.txt
 *.html
 html_snippet/
-data/
+data/html/*

@@ -346,7 +346,7 @@ if __name__ == '__main__':
 		fileUidsVisited = './data/uidsVisited.txt'
 		fileUidsToCrawl = './data/uidsToCrawl.txt'
 		fileUidsCrawled = './data/uidsCrawled.txt'
-		crawler = Crawler(numGetUidThread = 2, numGetPostsThread = 20, fileuidsToVisit = fileuidsToVisit, fileUidsVisited = fileUidsVisited)
+		crawler = Crawler(numGetUidThread = 2, numGetPostsThread = 50, fileuidsToVisit = fileuidsToVisit, fileUidsVisited = fileUidsVisited)
 		crawler.start()
  
 		signal.signal(signal.SIGINT, exitHandler)
