@@ -46,7 +46,7 @@ def csvGenerator(fd):
 		for i in xrange(count-1):
 			yield l[i].strip()
 		data = l[count-1]
-	yield data
+	yield data.strip()
 
 class GetUidThread(threading.Thread):
 
