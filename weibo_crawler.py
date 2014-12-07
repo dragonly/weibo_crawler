@@ -46,7 +46,7 @@ def csvGenerator(fd):
 		for i in xrange(count-1):
 			yield l[i].strip()
 		data = l[count-1]
-	yield data
+	yield data.strip()
 
 class GetUidThread(threading.Thread):
 
@@ -195,7 +195,7 @@ class GetPostsThread(threading.Thread):
 		params['pagebar'] = 0
 		for page in range(11)[1:]:
 			if self.__terminated__:
-				break
+				return False
 			try:
 				url = url_home + str(page)
 				logging.info('Getting POSTS from %s' % url)
@@ -230,6 +230,8 @@ class GetPostsThread(threading.Thread):
 
 			except Exception, e:
 				logging.exception('Getting posts from %s failed' % str(uid))
+				return False
+		return True
 
 	def run(self):
 		while not self.__terminated__:
@@ -241,8 +243,8 @@ class GetPostsThread(threading.Thread):
 				continue
 
 			logging.info('Getting posts from user %s' % uid)
-			self.get_posts(uid)
-			self.uidsCrawled.add(uid)
+			if self.get_posts(uid):
+				self.uidsCrawled.add(uid)
 
 			logging.debug('Uids crawled: %s' % len(self.uidsCrawled))
 			logging.debug('Uids to crawl" %s' % len(self.uidsToCrawl))
