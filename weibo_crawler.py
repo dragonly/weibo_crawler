@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup as BS
 
 logging.basicConfig(level = logging.DEBUG,
 					format='[%(levelname)s] '
-							'%(filename)s '
+							# '%(filename)s '
 							'[%(lineno)d] '
 							'%(threadName)s '
 							'%(message)s')
@@ -41,12 +41,10 @@ def csvGenerator(fd):
 		if not buff:
 			break
 		data += buff
-		if not ',' in buff:
-			continue
 		l = data.split(',')
 		count = len(l)
 		for i in xrange(count-1):
-			yield l[i]
+			yield l[i].strip()
 		data = l[count-1]
 	yield data
 
@@ -71,7 +69,7 @@ class GetUidThread(threading.Thread):
 		try:
 			html_snippet = re.search(pattern, html).group(1)
 		except AttributeError, e:
-			print e
+			logging.exception('No follow list pattern found')
 			return
 		except Exception, e:
 			logging.exception('Getting follow list failed')
@@ -80,7 +78,7 @@ class GetUidThread(threading.Thread):
 		soup = BS(html_snippet)
 
 		followList = soup.find_all('li', class_='follow_item')
-		# info = []
+		info = []
 		for item in followList:
 			try:
 				d = {}
@@ -115,7 +113,7 @@ class GetUidThread(threading.Thread):
 				d['introduction'] = introduction
 				d['follow_from'] = follow_from
 
-				# info.append(d)
+				info.append(d)
 
 				if self._qualified(d) and (d['uid'] not in self.uidsVisited) and (d['uid'] not in self.uidsToVisit):
 					self.uidsToVisit.add(d['uid'])
@@ -127,6 +125,12 @@ class GetUidThread(threading.Thread):
 			except Exception, e:
 				logging.exception('Parse follow list of %s [%s] error' % (uid, page))
 
+			# print '-'*100
+			# for i in info:
+			# 	for key in i.keys():
+			# 		print key, ':', i[key]
+			# 	print '-'*60
+
 	def _qualified(self, info):
 		# return info['following']
 		return True
@@ -134,13 +138,14 @@ class GetUidThread(threading.Thread):
 	def run(self):
 		while not self.__terminated__:
 		# for i in range(1):
-			while len(self.uidsToVisit) <= 0:
-				pass
+			# while len(self.uidsToVisit) <= 0:
+			# 	pass
 
 			try:
 				uid = self.uidsToVisit.pop()
 			except Exception, e:
 				logging.exception('Getting uidsToVisit error')
+				time.sleep(1)
 				continue
 			
 			logging.info('Getting following list from uid[\'%s\']' % uid)
@@ -157,6 +162,8 @@ class GetUidThread(threading.Thread):
 
 			# self.uidsToVisit.task_done()
 			# print self.taskQueue.queue
+
+		logging.info('SHUTTING DOWN THREAD')
 
 class GetPostsThread(threading.Thread):
 	def __init__(self, uidsToCrawl, uidsCrawled, *args, **kwargs):
@@ -190,8 +197,9 @@ class GetPostsThread(threading.Thread):
 			if self.__terminated__:
 				break
 			try:
-				logging.info('Getting posts from %s' % url_home)
-				html = S.get(url_home + str(page)).text
+				url = url_home + str(page)
+				logging.info('Getting POSTS from %s' % url)
+				html = S.get(url).text
 
 				left = html.find('$CONFIG[\'domain\']=\'') + 19
 				right = html.find('\'', left + 1)
@@ -212,7 +220,7 @@ class GetPostsThread(threading.Thread):
 					html += self._escape_unicode(html_snippet)
 					params['pagebar'] += 1
 
-				logging.info('Writing %s to file' % url_home)
+				logging.info('Writing %s to file' % url)
 				with open('./data/html/%s?page=%s.html' % (uid, str(page)), 'wt') as fd:
 					fd.write(BS(html).prettify())
 
@@ -225,12 +233,11 @@ class GetPostsThread(threading.Thread):
 
 	def run(self):
 		while not self.__terminated__:
-			while len(self.uidsToCrawl) <= 0:
-				pass
 			try:
 				uid = self.uidsToCrawl.pop()
 			except Exception, e:
-				logging.exception('Getting uidsToCrawl Error')
+				logging.exception('Getting uidsToCrawl error')
+				time.sleep(1)
 				continue
 
 			logging.info('Getting posts from user %s' % uid)
@@ -239,6 +246,8 @@ class GetPostsThread(threading.Thread):
 
 			logging.debug('Uids crawled: %s' % len(self.uidsCrawled))
 			logging.debug('Uids to crawl" %s' % len(self.uidsToCrawl))
+
+		logging.info('SHUTTING DOWN THREAD')
 
 class Crawler:
 	def __init__(self, numGetUidThread = 2, numGetPostsThread = 20, fileuidsToVisit = None, fileUidsVisited = None):
@@ -262,12 +271,6 @@ class Crawler:
 
 		self.getUidThreads = []
 		self.getPostsThreads = []
-
-	def _loadUidsFromFile(self, fd, uidSet):
-		uidsIter = csvGenerator(fd)
-		for uid in uidsIter:
-			if uid != '':
-				uidSet.add(uid)
 
 	def startGetUid(self, q):
 		for i in range(0, self.numGetUidThread):
@@ -305,15 +308,6 @@ class Crawler:
 		t.start()
 		# q.join()
 
-	def _writeUidsToFile(self, fd, uidSet):
-		fd.truncate()
-		fd.seek(0)
-		for uid in list(uidSet)[:-1]:
-			fd.write(uid)
-			fd.write(',')
-		fd.write(list(uidSet)[-1])
-		fd.close()
-
 	def stop(self):
 		for thread in self.getUidThreads:
 			thread.__terminated__ = True
@@ -331,13 +325,30 @@ class Crawler:
 		self._writeUidsToFile(self.fdUidsToCrawl, self.uidsToCrawl)
 		self._writeUidsToFile(self.fdUidsCrawled, self.uidsCrawled)
 
+	def _loadUidsFromFile(self, fd, uidSet):
+		uidsIter = csvGenerator(fd)
+		for uid in uidsIter:
+			if uid != '':
+				uidSet.add(uid)
+		logging.info('Loading uids from %s\n%s' % (fd, uidSet))
+		
+	def _writeUidsToFile(self, fd, uidSet):
+		fd.truncate()
+		fd.seek(0)
+		for uid in list(uidSet)[:-1]:
+			fd.write(uid)
+			fd.write(',')
+		fd.write(list(uidSet)[-1])
+		fd.close()
+		logging.info('Writing uids to %s\n%s' % (fd, uidSet))
+
 def exitHandler(*args, **kwargs):
 	global crawler
 	crawler.stop()
 	exit()
 
 if __name__ == '__main__':
-	username = '18817583755'
+	username = 'liyilongko@163.com'
 	# password = getpass.getpass()
 	password = ''
 	cookieFile = 'cookies.txt'
@@ -346,7 +357,7 @@ if __name__ == '__main__':
 		fileUidsVisited = './data/uidsVisited.txt'
 		fileUidsToCrawl = './data/uidsToCrawl.txt'
 		fileUidsCrawled = './data/uidsCrawled.txt'
-		crawler = Crawler(numGetUidThread = 2, numGetPostsThread = 50, fileuidsToVisit = fileuidsToVisit, fileUidsVisited = fileUidsVisited)
+		crawler = Crawler(numGetUidThread = 2, numGetPostsThread = 20, fileuidsToVisit = fileuidsToVisit, fileUidsVisited = fileUidsVisited)
 		crawler.start()
  
 		signal.signal(signal.SIGINT, exitHandler)

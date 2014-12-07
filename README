@@ -1,0 +1,15 @@
+## A simple crawler for weibo posts
+
+### Background
+
+For some reason, I wanna collect data in a period of time on weibo.com, so I designed this crawler.
+
+It does the following things:
+
+- mimic the ajaxlogin behavior in JavaScript on the site, and save the cookie
+- start 2 kinds of threads
+	- getUidThread
+		- start from a single user, get at most the first 5 pages of follower list of him/her
+	- getPostsThread
+		- getting 10 pages of posts from uids gotten by getUidThread
+- when receive SIGINT, shutdown all threads, and write uids in queues into files
